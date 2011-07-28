@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{rack-reverse-proxy}
-  s.version = "0.4.1"
+  s.version = "0.4.2"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Jon Swope"]
-  s.date = %q{2011-04-04}
+  s.date = %q{2011-07-27}
   s.description = %q{A Rack based reverse proxy for basic needs.  Useful for testing or in cases where webserver configuration is unavailable.}
   s.email = %q{jaswope@gmail.com}
   s.extra_rdoc_files = [
@@ -30,15 +30,10 @@ Gem::Specification.new do |s|
   ]
   s.homepage = %q{http://github.com/jaswope/rack-reverse-proxy}
   s.require_paths = ["lib"]
-  s.rubygems_version = %q{1.3.7}
+  s.rubygems_version = %q{1.6.2}
   s.summary = %q{A Simple Reverse Proxy for Rack}
-  s.test_files = [
-    "spec/rack/reverse_proxy_spec.rb",
-    "spec/spec_helper.rb"
-  ]
 
   if s.respond_to? :specification_version then
-    current_version = Gem::Specification::CURRENT_SPECIFICATION_VERSION
     s.specification_version = 3
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
