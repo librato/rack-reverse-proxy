@@ -47,7 +47,7 @@ module Rack
         req.basic_auth all_opts[:username], all_opts[:password] if all_opts[:username] and all_opts[:password]
 
         # Copy the body if content length is set
-        if rackreq.content_length
+        if rackreq.content_length && rackreq.content_length.to_i > 0
           if rackreq.body.respond_to?(:read) && rackreq.body.respond_to?(:rewind)
             body = rackreq.body.read
             req.content_length = body.size
