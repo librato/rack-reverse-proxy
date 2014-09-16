@@ -6,13 +6,13 @@ module Rack
     def initialize(app = nil, &b)
       @app = app || lambda {|env| [404, [], []] }
       @matchers = []
-      @global_options = {:preserve_host => true, :x_forwarded_host => true, :matching => :all, :verify_ssl => true}
+      @global_options = {:preserve_host => true, :x_forwarded_host => true, :matching => :all, :verify_ssl => true, :method => :all}
       instance_eval &b if block_given?
     end
 
     def call(env)
       rackreq = Rack::Request.new(env)
-      matcher = get_matcher rackreq.fullpath
+      matcher = get_matcher(rackreq)
       return @app.call(env) if matcher.nil?
 
       uri = matcher.get_uri(rackreq.fullpath,env)
@@ -73,15 +73,15 @@ module Rack
 
     private
 
-    def get_matcher path
+    def get_matcher(rackreq)
       matches = @matchers.select do |matcher|
-        matcher.match?(path)
+        matcher.match?(rackreq.request_method, rackreq.fullpath)
       end
 
       if matches.length < 1
         nil
       elsif matches.length > 1 && @global_options[:matching] != :first
-        raise AmbiguousProxyMatch.new(path, matches)
+        raise AmbiguousProxyMatch.new(rackreq.fullpath, matches)
       else
         matches.first
       end
@@ -144,12 +144,13 @@ module Rack
       @url=url
       @options=options
       @matching_regexp= matching.kind_of?(Regexp) ? matching : /^#{matching.to_s}/
+      @method = normalize_method(@options[:method])
     end
 
     attr_reader :matching,:matching_regexp,:url,:options
 
-    def match?(path)
-      match_path(path) ? true : false
+    def match?(method, path)
+      method_matches?(method) && path_matches?(path)
     end
 
     def get_uri(path,env)
@@ -165,10 +166,31 @@ module Rack
       %Q("#{matching.to_s}" => "#{url}")
     end
     private
+
+    def path_matches?(path)
+      match_path(path) ? true : false
+    end
+
+    def normalize_method(method)
+      return :all if method == :all
+
+      case method
+      when Symbol
+        [method.to_s.upcase.to_sym]
+      when String
+        [method.upcase.to_sym]
+      when Array
+        method.collect{|s| s.upcase.to_sym}
+      end
+    end
+
+    def method_matches?(method)
+      @method == :all || @method.include?(method.upcase.to_sym)
+    end
+
     def match_path(path)
       path.match(matching_regexp)
     end
-
 
   end
 end
