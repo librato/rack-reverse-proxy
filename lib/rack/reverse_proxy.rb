@@ -20,7 +20,7 @@ module Rack
       headers = Rack::Utils::HeaderHash.new
       env.each { |key, value|
         if !value.nil? and key =~ /HTTP_(.*)/
-          headers[$1] = value
+          headers[$1] = value.gsub("\n", "")
         end
       }
       headers['HOST'] = uri.host if all_opts[:preserve_host]
