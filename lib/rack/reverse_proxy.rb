@@ -58,8 +58,13 @@ module Rack
 
           req.content_type = rackreq.content_type unless rackreq.content_type.nil?
           req.body_stream = rackreq.body
-          # Delete User-Agent if not set upstream
-          req.delete('User-Agent') unless headers.has_key?('User-Agent')
+          ua = headers['USER_AGENT']
+          if ua.nil?
+            # Remove the header entirely if it doesn't exist
+            req.delete('User-Agent')
+          else
+            req['User-Agent'] = headers['USER_AGENT']
+          end
         end
 
         body = ''
