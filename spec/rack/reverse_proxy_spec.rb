@@ -9,13 +9,14 @@ describe Rack::ReverseProxy do
   end
 
   def dummy_app
-    lambda { [200, {}, ['Dummy App']] }
+    lambda { |env| [200, {}, ['Dummy App']] }
   end
 
   describe "as middleware" do
     def app
       Rack::ReverseProxy.new(dummy_app) do
         reverse_proxy '/test', 'http://example.com/', {:preserve_host => true}
+        reverse_proxy '/2test', lambda{ |env| 'http://example.com/'}
       end
     end
 
@@ -31,34 +32,70 @@ describe Rack::ReverseProxy do
       last_response.body.should == "Proxied App"
     end
 
-		it "the response header should never contain Status" do
-			stub_request(:any, 'example.com/test/stuff').to_return(:headers => {'Status' => '200 OK'})
-			get '/test/stuff'
-			last_response.headers['Status'].should == nil
-		end
+    it "should proxy requests to a lambda url when a pattern is matched" do
+      stub_request(:get, 'http://example.com/2test').to_return({:body => "Proxied App2"})
+      get '/2test'
+      last_response.body.should == "Proxied App2"
+    end
 
-		it "the response header should never transfer-encoding" do
-			stub_request(:any, 'example.com/test/stuff').to_return(:headers => {'transfer-encoding' => 'Chunked'})
-			get '/test/stuff'
-			last_response.headers['transfer-encoding'].should == nil
-		end
+    it "the response header should never contain Status" do
+      stub_request(:any, 'example.com/test/stuff').to_return(:headers => {'Status' => '200 OK'})
+      get '/test/stuff'
+      last_response.headers['Status'].should == nil
+    end
 
-		it "should set the Host header" do
-			stub_request(:any, 'example.com/test/stuff')
-			get '/test/stuff'
-			a_request(:get, 'http://example.com/test/stuff').with(:headers => {"Host" => "example.com"}).should have_been_made
-		end
+    it "the response header should never transfer-encoding" do
+      stub_request(:any, 'example.com/test/stuff').to_return(:headers => {'transfer-encoding' => 'Chunked'})
+      get '/test/stuff'
+      last_response.headers['transfer-encoding'].should == nil
+    end
+
+    it "the response header should include content-length" do
+      body = 'this is the test body'
+      stub_request(:any, 'example.com/test/stuff').to_return(:body => body, :headers => {'Content-Length' => '10'})
+      get '/test/stuff'
+      last_response.headers['Content-Length'].should == body.length.to_s
+    end
+
+    it "should set the Host header" do
+      stub_request(:any, 'example.com/test/stuff')
+      get '/test/stuff'
+      a_request(:get, 'http://example.com/test/stuff').with(:headers => {"Host" => "example.com"}).should have_been_made
+    end
+
+    it "should set the X-Forwarded-Host header to the proxying host by default" do
+      stub_request(:any, 'example.com/test/stuff')
+      get '/test/stuff'
+      a_request(:get, 'http://example.com/test/stuff').with(:headers => {'X-Forwarded-Host' => 'example.org'}).should have_been_made
+    end
 
     describe "with preserve host turned off" do
       def app
         Rack::ReverseProxy.new(dummy_app) do
-          reverse_proxy '/test', 'http://example.com/'
+          reverse_proxy '/test', 'http://example.com/', {:preserve_host => false}
         end
       end
 
       it "should not set the Host header" do
         stub_request(:any, 'example.com/test/stuff')
         get '/test/stuff'
+        a_request(:get, 'http://example.com/test/stuff').with(:headers => {"Host" => "example.com"}).should_not have_been_made
+        a_request(:get, 'http://example.com/test/stuff').should have_been_made
+      end
+    end
+
+    describe "with x_forwarded_host turned off" do
+      def app
+        Rack::ReverseProxy.new(dummy_app) do
+          reverse_proxy_options :x_forwarded_host => false
+          reverse_proxy '/test', 'http://example.com/'
+        end
+      end
+
+      it "should not set the X-Forwarded-Host header to the proxying host" do
+        stub_request(:any, 'example.com/test/stuff')
+        get '/test/stuff'
+        a_request(:get, 'http://example.com/test/stuff').with(:headers => {'X-Forwarded-Host' => 'example.org'}).should_not have_been_made
         a_request(:get, 'http://example.com/test/stuff').should have_been_made
       end
     end
@@ -77,9 +114,10 @@ describe Rack::ReverseProxy do
       end
     end
 
-    describe "with ambiguous routes" do
+    describe "with ambiguous routes and all matching" do
       def app
         Rack::ReverseProxy.new(dummy_app) do
+          reverse_proxy_options :matching => :all
           reverse_proxy '/test', 'http://example.com/'
           reverse_proxy /^\/test/, 'http://example.com/'
         end
@@ -87,6 +125,22 @@ describe Rack::ReverseProxy do
 
       it "should throw an exception" do
         lambda { get '/test' }.should raise_error(Rack::AmbiguousProxyMatch)
+      end
+    end
+
+    describe "with ambiguous routes and first matching" do
+      def app
+        Rack::ReverseProxy.new(dummy_app) do
+          reverse_proxy_options :matching => :first
+          reverse_proxy '/test', 'http://example1.com/'
+          reverse_proxy /^\/test/, 'http://example2.com/'
+        end
+      end
+
+      it "should throw an exception" do
+        stub_request(:get, 'http://example1.com/test').to_return({:body => "Proxied App"})
+        get '/test'
+        last_response.body.should == "Proxied App"
       end
     end
 
@@ -104,20 +158,20 @@ describe Rack::ReverseProxy do
       end
     end
 
-		describe "with a https route" do
+    describe "with a https route" do
       def app
         Rack::ReverseProxy.new(dummy_app) do
           reverse_proxy '/test', 'https://example.com'
         end
       end
 
-			it "should make a secure request" do
+      it "should make a secure request" do
         stub_request(:get, 'https://example.com/test/stuff').to_return({:body => "Proxied Secure App"})
         get '/test/stuff'
         last_response.body.should == "Proxied Secure App"
-			end
+      end
 
-		end
+    end
 
     describe "with a route as a string" do
       def app
