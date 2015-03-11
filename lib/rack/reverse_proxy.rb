@@ -181,7 +181,9 @@ module Rack
     end
 
     def normalize_method(method)
-      return :all if method == :all
+      if !method || method == :all
+        return :all
+      end
 
       case method
       when Symbol
