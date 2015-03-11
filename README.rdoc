@@ -1,3 +1,7 @@
+NOTE: This lib has been reasonably heavily modified and shouldn't be expected to be replaceable drop-in with future versions of the original lib, if they exist in the future.
+
+----------
+
 = A Reverse Proxy for Rack
 
 This is a simple reverse proxy for Rack that pretty heavily rips off Rack Forwarder.  It is not meant for production systems (although it may work), as the webserver fronting your app is generally much better at this sort of thing.
