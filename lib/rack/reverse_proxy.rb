@@ -148,21 +148,21 @@ module Rack
   end
 
   class ReverseProxyMatcher
-    def initialize(matching,url,options)
-      @matching=matching
-      @url=url
-      @options=options
-      @matching_regexp= matching.kind_of?(Regexp) ? matching : /^#{matching.to_s}/
-      @method = normalize_method(@options[:method])
-    end
-
     attr_reader :matching,:matching_regexp,:url,:options
+
+    def initialize(matching, url, options)
+      @matching = matching
+      @url      = url
+      @options  = options
+      @method   = normalize_method(@options[:method])
+      @matching_regexp = matching.kind_of?(Regexp) ? matching : /^#{matching.to_s}/
+    end
 
     def match?(method, path)
       method_matches?(method) && path_matches?(path)
     end
 
-    def get_uri(path,env)
+    def get_uri(path, env)
       _url=(url.respond_to?(:call) ? url.call(env) : url.clone)
       if _url =~/\$\d/
         match_path(path).to_a.each_with_index { |m, i| _url.gsub!("$#{i.to_s}", m) }
@@ -171,9 +171,11 @@ module Rack
         URI.join(_url, path)
       end
     end
+
     def to_s
       %Q("#{matching.to_s}" => "#{url}")
     end
+
     private
 
     def path_matches?(path)
@@ -191,7 +193,7 @@ module Rack
       when String
         [method.upcase.to_sym]
       when Array
-        method.collect{|s| s.upcase.to_sym}
+        method.collect { |s| s.to_s.upcase.to_sym }
       end
     end
 
